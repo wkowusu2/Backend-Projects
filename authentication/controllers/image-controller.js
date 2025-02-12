@@ -1,5 +1,7 @@
 const Image = require('../models/image') 
 const {uploadToCloudinary} = require('../helpers/cloudinary-helper')
+const fs = require('fs')   
+const cloudinary = require('../config/cloudinary') 
 
 const imageController = async (req, res) => {
     try {
@@ -29,6 +31,8 @@ const imageController = async (req, res) => {
             message: 'Image saved successfully',
             image: newImage
          })
+         fs.unlinkSync('/uploads')
+
     } catch (error) {
         console.error(error)
         res.status(500).json({
@@ -38,7 +42,60 @@ const imageController = async (req, res) => {
     }
 }
 
+const getImagesController = async (req, res) => {
+    const images = await Image.find({})
+    if(!images) {
+        return res.status(404).json({
+            success: false,
+            message: 'There is no image in the database'
+        })
+    }
+    return res.status(200).json({
+        success: true,
+        data: images
+    })
+}
+
+const deleteImageController = async (req,res) => {
+    try {
+        const getCurrentImageToBeDeleted = req.params.id
+        const userId = req.user.id
+        const image = await Image.findByIdAndDelete(getCurrentImageToBeDeleted)
+        if(!image){
+            return res.status(404).json({
+                success: false,
+                message: 'Image not found'
+            });
+        }
+
+        //check if the image was uploaded by the current user who wants to delete it
+        if(userId !== image.uploadedBy.toString()) {
+            return res.status(401).json({
+                success: false,
+                message: 'You are not authorized to delete this image'
+            });
+        }
+
+        //delete the image from cloudinary
+        await cloudinary.uploader.destroy(image.publicId)
+
+        //now delete from mongodb
+        await Image.findByIdAndDelete(getCurrentImageToBeDeleted); 
+        res.status(200).json({
+            success: true,
+            message: 'Image deleted successfully'
+        });
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({
+            success: false,
+            message: 'Something went wrong. Please try again.'
+        })
+    }
+}
 
 module.exports = {
-    imageController
+    imageController,
+    deleteImageController,
+    getImagesController
 } 

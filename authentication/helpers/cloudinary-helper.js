@@ -3,7 +3,7 @@ const cloudinary = require('../config/cloudinary');
 const uploadToCloudinary = async (filePath) => {
     try {
         const result = await cloudinary.uploader.upload(filePath); 
-        console.log(result.secure_url,result.public_id)
+        // console.log(result.secure_url,result.public_id)
         return {
             url: result.secure_url,
             publicId : result.public_id,
